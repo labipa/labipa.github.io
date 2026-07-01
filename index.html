@@ -96,6 +96,9 @@
     // Kirim data ke Google Sheets via Fetch API POST
     fetch(webAppUrl, {
       method: "POST",
+      headers: {
+        "Content-Type": "text/plain" // Google Apps Script lebih stabil menerima text/plain lalu di-parse
+      },
       body: JSON.stringify({ action: "login", email: email, password: pass })
     })
     .then(res => res.json())
