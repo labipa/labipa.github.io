@@ -205,7 +205,7 @@
 
       <section class="card scanner-card">
         <div class="card-head">
-          <div><h2>Scan QR praktikan</h2><p>Pastikan QR terlihat jelas dan kamera mendapat izin akses.</p></div>
+          <div><h2>Scan QR praktikan atau Koas</h2><p>Scan QR praktikan untuk presensi; scan barcode Koas untuk check-in mandiri.</p></div>
           <span id="badge-camera" class="badge badge-neutral">Kamera mati</span>
         </div>
         <div class="card-body">
@@ -250,7 +250,7 @@
   const WEB_APP_URL = document.getElementById("web-app-url").value;
   const el = id => document.getElementById(id);
   const state = {
-    token: "", nama: "", peran: "", sesiAktif: [], kodeSesiRekap: "",
+    token: "", id: "", nama: "", peran: "", sesiAktif: [], kodeSesiRekap: "",
     scanner: null, kameraAktif: false, mulaiKamera: false, prosesScan: false,
     nimMenungguPilihan: "", timerLanjut: 0, daftarKamera: [], indeksKamera: -1
   };
@@ -303,6 +303,7 @@
       if (!response.token) throw new Error("Server tidak memberikan token sesi. Perbarui deployment sistem lalu coba lagi.");
 
       state.token = response.token;
+      state.id = response.id || "";
       state.nama = response.nama || "";
       state.peran = response.peran || "";
       el("txt-nama-admin").textContent = state.nama || "Staf";
@@ -469,8 +470,8 @@
     });
   }
 
-  function tampilkanPilihanSesi(nim, pilihan) {
-    state.nimMenungguPilihan = nim;
+  function tampilkanPilihanSesi(qrData, pilihan, isKoas) {
+    state.nimMenungguPilihan = qrData;
     state.prosesScan = false;
     el("choice-list").replaceChildren();
     (Array.isArray(pilihan) ? pilihan : []).forEach(function (sesi) {
@@ -481,14 +482,18 @@
       const nama = sesi.nama_sesi || sesi.kode_sesi;
       label.textContent = nama + " · " + (sesi.kode_mk || "-") + " · Pertemuan " + (sesi.pertemuan || "-");
       tombol.appendChild(label);
-      tombol.addEventListener("click", function () { prosesHasilScan(nim, sesi.kode_sesi); });
+      tombol.addEventListener("click", function () { prosesHasilScan(qrData, sesi.kode_sesi); });
       el("choice-list").appendChild(tombol);
     });
+    el("choice-panel").querySelector("h3").textContent = isKoas ? "Pilih sesi check-in Koas" : "Pilih sesi untuk praktikan ini";
+    el("choice-panel").querySelector("p").textContent = isKoas
+      ? "Koas memiliki beberapa mata kuliah penugasan yang sedang aktif. Pilih sesi check-in."
+      : "Praktikan terdaftar pada lebih dari satu sesi aktif. Pilihan ini hanya untuk scan saat ini.";
     el("choice-panel").hidden = false;
     el("btn-refresh-status").disabled = true;
     el("sel-rekap-sesi").disabled = true;
     perbaruiKontrolKamera();
-    setLog("Pilih sesi presensi", "QR terbaca untuk NIM " + nim + ". Pilih sesi yang sesuai untuk melanjutkan.", "warning");
+    setLog("Pilih sesi presensi", "QR terbaca untuk " + (isKoas ? "ID Koas " : "NIM ") + qrData + ". Pilih sesi yang sesuai untuk melanjutkan.", "warning");
   }
 
   function perbaruiKontrolKamera() {
@@ -551,24 +556,52 @@
     }, 2200);
   }
 
-  async function prosesHasilScan(nim, kodeSesi) {
+  function idKoasDariBarcode(teks) {
+    const qr = String(teks || "").trim();
+    const prefix = qr.match(/^KOAS\s*:\s*(.+)$/i);
+    if (prefix) return prefix[1].trim();
+    if (state.peran.toLowerCase() === "koas" && qr.toLowerCase() === state.id.toLowerCase()) return state.id;
+    return "";
+  }
+
+  async function prosesHasilScan(teksBarcode, kodeSesi) {
     state.prosesScan = true;
     perbaruiKontrolKamera();
     el("choice-panel").hidden = true;
-    setLog("Memproses presensi", "Memeriksa NIM " + nim + " pada sesi aktif...", "neutral");
+    const idKoas = idKoasDariBarcode(teksBarcode);
+    const dataScan = idKoas
+      ? { action: "scan_koas", id_koas: idKoas, kode_sesi: kodeSesi || "" }
+      : { action: "scan", nim: String(teksBarcode || "").trim(), kode_sesi: kodeSesi || "" };
+    setLog(idKoas ? "Memproses check-in Koas" : "Memproses presensi", idKoas
+      ? "Memeriksa barcode Koas " + idKoas + " pada sesi aktif..."
+      : "Memeriksa NIM " + String(teksBarcode || "").trim() + " pada sesi aktif...", "neutral");
     try {
-      const response = await kirimTerautentikasi({ action: "scan", nim: nim, kode_sesi: kodeSesi || "" });
+      const response = await kirimTerautentikasi(dataScan);
       if (response && response.perlu_pilih) {
-        tampilkanPilihanSesi(nim, response.pilihan);
+        tampilkanPilihanSesi(teksBarcode, response.pilihan, !!idKoas);
         return;
       }
       if (!response || !response.success) throw new Error(response && response.message ? response.message : "Presensi tidak berhasil dicatat.");
 
       state.nimMenungguPilihan = "";
       renderTabelAdmin(response.rekap_admin);
+      if (idKoas) {
+        const detailKoas = [
+          "Nama: " + (response.nama || "-"),
+          "ID Koas: " + (response.id_koas || idKoas),
+          "Mata kuliah: " + (response.kode_mk || "-"),
+          "Sesi: " + (response.kode_sesi || "-") + " · Pertemuan " + (response.pertemuan || "-"),
+          "Status: " + (response.status || "-"),
+          "Sumber: " + (response.sumber || "Check-in mandiri")
+        ];
+        setLog(response.sudah_tercatat ? "Presensi Koas sudah tercatat" : "Check-in Koas berhasil",
+          detailKoas.join("\n"), response.sudah_tercatat ? "warning" : "success");
+        lanjutkanScan();
+        return;
+      }
       const detail = [
         "Nama: " + (response.nama || "-"),
-        "NIM: " + (response.nim || nim),
+        "NIM: " + (response.nim || String(teksBarcode || "").trim()),
         "Mata kuliah: " + (response.kode_mk || "-"),
         "Sesi: " + (response.kode_sesi || "-") + " · Pertemuan " + (response.pertemuan || "-"),
         "Status: " + (response.status || "-")
@@ -591,8 +624,8 @@
 
   async function mulaiPemindaian(decodedText) {
     if (state.prosesScan || state.nimMenungguPilihan || !state.kameraAktif) return;
-    const nim = String(decodedText || "").trim();
-    if (!nim) return;
+    const teksBarcode = String(decodedText || "").trim();
+    if (!teksBarcode) return;
     state.prosesScan = true;
     perbaruiKontrolKamera();
     try {
@@ -604,7 +637,7 @@
       console.error(error);
       return;
     }
-    await prosesHasilScan(nim, state.kodeSesiRekap);
+    await prosesHasilScan(teksBarcode, state.kodeSesiRekap);
   }
 
   async function mulaiKamera() {
@@ -648,7 +681,7 @@
       state.scanner = scanner;
       state.kameraAktif = true;
       tampilkanKameraAktif();
-      setLog("Kamera aktif", "Arahkan kamera ke QR praktikan.", "neutral");
+      setLog("Kamera aktif", "Arahkan kamera ke QR praktikan atau barcode Koas.", "neutral");
     } catch (error) {
       try { await scanner.clear(); } catch (clearError) { console.warn("Pemindai tidak dapat dibersihkan.", clearError); }
       state.scanner = null;
@@ -734,6 +767,7 @@
   async function keluar(expired) {
     await hentikanKamera();
     state.token = "";
+    state.id = "";
     state.nama = "";
     state.peran = "";
     state.sesiAktif = [];
