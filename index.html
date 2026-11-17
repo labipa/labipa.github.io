@@ -3,372 +3,768 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Scanner Kehadiran Praktikum</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Pemindai Presensi · Portal Praktikum</title>
+  <meta name="theme-color" content="#2A1348">
   <script src="https://unpkg.com/html5-qrcode"></script>
   <style>
-    body { background-color: #f1f3f5; padding-top: 50px; padding-bottom: 50px; }
-    .scanner-box { border: 2px dashed #0d6efd; border-radius: 12px; overflow: hidden; background: #000; }
-    .card-auth { max-width: 400px; margin: 0 auto; border: none; }
-    .card-admin { border-left: 5px solid #ffc107; }
-    .status-hadir { color: #198754; font-weight: bold; }
-    .status-lambat { color: #dc3545; font-weight: bold; }
+    :root {
+      --u900: #2A1348; --u800: #3A1D63; --u700: #4B2780; --u600: #5E2E9B; --u500: #7A4DB8;
+      --u300: #B99BE0; --u200: #DAC8F2; --u100: #EDE3F9; --u50: #F6F1FC;
+      --bg: #F8F6FB; --surf: #FFFFFF; --ink: #1D1830; --muted: #655D7A; --line: #E4DEEE; --line2: #D3CAE3;
+      --ok: #1B7A50; --ok-bg: #DFF3E8; --warn: #7A4F00; --warn-bg: #FFF0CC; --bad: #AE241B; --bad-bg: #FBE6E3;
+      --radius: 16px; --font: "Plus Jakarta Sans", Inter, "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--bg); color: var(--ink); font: 400 14px/1.5 var(--font); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+    .login-page { min-height: 100vh; display: grid; place-items: center; padding: 28px 16px; }
+    .login-wrap { width: min(440px, 100%); }
+    .brand { display: flex; align-items: center; gap: 12px; color: var(--u900); text-decoration: none; }
+    .brand-mark { width: 42px; height: 42px; display: grid; place-items: center; flex: none; border-radius: 13px; background: var(--u800); color: #fff; }
+    .brand strong { display: block; font-size: 15px; line-height: 1.25; }
+    .brand small { display: block; margin-top: 3px; color: var(--muted); font-size: 12px; }
+    .login-card { margin-top: 24px; padding: 30px; background: var(--surf); border: 1px solid var(--line); border-radius: 22px; box-shadow: 0 12px 40px rgba(42,19,72,.08); }
+    .eyebrow { color: var(--u600); font-size: 11px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    h1, h2, h3, p { margin: 0; }
+    h1 { margin-top: 8px; font-size: clamp(23px, 5vw, 29px); line-height: 1.2; letter-spacing: -.02em; }
+    h2 { font-size: 18px; line-height: 1.3; }
+    h3 { font-size: 15px; line-height: 1.35; }
+    .muted { color: var(--muted); }
+    .login-copy { margin-top: 8px; color: var(--muted); }
+    .form { display: grid; gap: 16px; margin-top: 24px; }
+    .field { display: grid; gap: 6px; color: var(--ink); font-size: 13px; font-weight: 700; }
+    .field input, .field select { width: 100%; min-height: 44px; padding: 9px 12px; border: 1px solid var(--line2); border-radius: 10px; outline: none; background: #fff; color: var(--ink); }
+    .field input:focus, .field select:focus { border-color: var(--u500); box-shadow: 0 0 0 3px var(--u100); }
+    .btn { display: inline-flex; min-height: 40px; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; border: 1px solid var(--line2); border-radius: 10px; background: #fff; color: var(--ink); font-weight: 700; transition: background .15s, border-color .15s; }
+    .btn:hover { border-color: var(--u300); background: var(--u50); }
+    .btn:disabled { cursor: not-allowed; opacity: .58; }
+    .btn-primary { min-height: 44px; border-color: var(--u600); background: var(--u600); color: #fff; }
+    .btn-primary:hover { border-color: var(--u700); background: var(--u700); color: #fff; }
+    .btn-danger { border-color: #EBC2BE; color: var(--bad); }
+    .btn-danger:hover { border-color: var(--bad); background: var(--bad-bg); }
+    .alert { margin-top: 16px; padding: 11px 13px; border-radius: 10px; font-weight: 600; }
+    .alert-error { background: var(--bad-bg); color: var(--bad); }
+    .alert-warning { background: var(--warn-bg); color: var(--warn); }
+    .login-note { margin: 16px 4px 0; color: var(--muted); font-size: 12px; text-align: center; }
+    .app-shell { width: min(1180px, 100%); margin: 0 auto; padding: 22px 24px 48px; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .profile { display: flex; align-items: center; gap: 12px; }
+    .profile-info { min-width: 0; text-align: right; }
+    .profile-info strong { display: block; overflow-wrap: anywhere; }
+    .profile-info small { display: block; color: var(--muted); }
+    .badge { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--u50); color: var(--u700); font-size: 12px; font-weight: 700; white-space: nowrap; }
+    .badge-ok { background: var(--ok-bg); color: var(--ok); }
+    .badge-warn { background: var(--warn-bg); color: var(--warn); }
+    .badge-neutral { background: #EEEBF3; color: var(--muted); }
+    .page-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 18px; margin: 24px 0 18px; }
+    .page-heading p { max-width: 620px; margin-top: 7px; color: var(--muted); }
+    .main-grid { display: grid; grid-template-columns: minmax(270px, .85fr) minmax(0, 1.15fr); gap: 16px; align-items: start; }
+    .card { min-width: 0; overflow: hidden; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surf); box-shadow: 0 3px 14px rgba(42,19,72,.035); }
+    .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px; border-bottom: 1px solid var(--line); }
+    .card-head p { margin-top: 4px; color: var(--muted); font-size: 12.5px; }
+    .card-body { padding: 18px 20px; }
+    .session-select { margin-bottom: 16px; }
+    .field-hint { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .session-list { display: grid; gap: 9px; }
+    .session-item { padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+    .session-item strong { display: block; overflow-wrap: anywhere; }
+    .session-item p { margin-top: 4px; color: var(--muted); font-size: 12.5px; }
+    .empty { padding: 18px 14px; border: 1px dashed var(--line2); border-radius: 12px; color: var(--muted); text-align: center; }
+    .scanner-card .card-body { padding: 20px; }
+    .reader-frame { width: 100%; min-height: 270px; overflow: hidden; border: 1px solid #24163A; border-radius: 14px; background: #1D1830; }
+    #reader video { border-radius: 12px; }
+    #reader__dashboard_section_swaplink { color: var(--u300); }
+    .camera-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .log-panel { margin-top: 16px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #FBF9FD; }
+    .log-title { font-weight: 800; }
+    .log-detail { margin-top: 5px; color: var(--muted); font-size: 13px; white-space: pre-line; overflow-wrap: anywhere; }
+    .log-panel[data-state="success"] { border-color: #B8E1C9; background: var(--ok-bg); }
+    .log-panel[data-state="success"] .log-title { color: var(--ok); }
+    .log-panel[data-state="error"] { border-color: #EBC2BE; background: var(--bad-bg); }
+    .log-panel[data-state="error"] .log-title { color: var(--bad); }
+    .log-panel[data-state="warning"] { border-color: #E8D19A; background: var(--warn-bg); }
+    .choice-panel { margin-top: 14px; padding: 14px; border: 1px solid #E8D19A; border-radius: 12px; background: #FFFAEC; }
+    .choice-panel p { margin-top: 4px; color: var(--muted); }
+    .choice-list { display: grid; gap: 8px; margin-top: 12px; }
+    .choice-list .btn { justify-content: flex-start; text-align: left; }
+    .choice-list .btn span { display: block; }
+    .table-card { margin-top: 16px; }
+    .table-meta { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12.5px; }
+    .table-wrap { max-height: 390px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 11px 14px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: middle; }
+    th { position: sticky; top: 0; z-index: 1; background: #FBF9FD; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    tbody tr:hover td { background: #FCFAFF; }
+    .group-row td { background: #EFE7FA; color: var(--u800); font-size: 12px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .status-chip { display: inline-flex; padding: 3px 8px; border-radius: 999px; background: var(--ok-bg); color: var(--ok); font-size: 11px; font-weight: 800; }
+    .status-chip.late { background: var(--warn-bg); color: var(--warn); }
+    .table-empty { padding: 34px 16px; color: var(--muted); text-align: center; }
+    @media (max-width: 800px) {
+      .app-shell { padding: 16px 14px 36px; }
+      .main-grid { grid-template-columns: 1fr; }
+      .page-heading { align-items: flex-start; flex-direction: column; }
+    }
+    @media (max-width: 520px) {
+      .login-card { padding: 22px 18px; }
+      .topbar { align-items: flex-start; }
+      .topbar .brand small { display: none; }
+      .profile { flex-wrap: wrap; justify-content: flex-end; }
+      .profile-info { max-width: 150px; }
+      .profile-info small { font-size: 11px; }
+      .profile .btn { padding-inline: 9px; }
+      .card-head, .card-body { padding: 15px; }
+      .card-head { align-items: center; }
+      .reader-frame { min-height: 230px; }
+      th, td { padding: 9px 10px; }
+      .table-meta { align-items: flex-end; flex-direction: column; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
   </style>
 </head>
 <body>
+<input type="hidden" id="web-app-url" value="https://script.google.com/a/macros/unesa.ac.id/s/AKfycbyEJa5QipT9Qty8vucZ5BEi8rmEbk4C7VXW35yTf66A_YM_I7QIDC_VvTt96fiItE8Xmg/exec">
 
-<div class="container" style="max-width: 800px;">
-
-  <!-- ==================== HALAMAN LOGIN ASISTEN/ADMIN ==================== -->
-  <div id="section-login">
-    <div class="card shadow-lg card-auth rounded-3">
-      <div class="card-body p-4">
-        <h4 class="fw-bold text-center text-primary mb-3">LOGIN ASISTEN LAB</h4>
-        <p class="text-muted text-center small mb-4">Silakan masukkan akun asisten Anda untuk mengaktifkan alat pemindai.</p>
-        
-        <input type="hidden" id="web-app-url" value="https://script.google.com/macros/s/AKfycbxplKEfDz4hWZMeZeLwsZrnqWjlHyzEo-tEbfvQxfNLT3o3CjmoIKivXuos-a8AhaS6bg/exec">
-
-        <div class="mb-3">
-          <label class="form-label small fw-bold">Email Asisten</label>
-          <input type="email" id="inp-email" class="form-control" placeholder="nama@univ.ac.id">
-        </div>
-        <div class="mb-4">
-          <label class="form-label small fw-bold">Password</label>
-          <input type="password" id="inp-pass" class="form-control" placeholder="••••••••">
-        </div>
-        
-        <button onclick="prosesLogin()" id="btn-login" class="btn btn-primary w-100 fw-bold py-2">Masuk Sistem</button>
-        <div id="alert-login" class="alert alert-danger text-center d-none mt-3 small"></div>
-      </div>
+<div id="section-login" class="login-page">
+  <div class="login-wrap">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"></path>
+          <path d="M8 12h8M12 8v8"></path>
+        </svg>
+      </span>
+      <span><strong>Portal Praktikum</strong><small>Program Studi S1 Pendidikan IPA</small></span>
     </div>
+    <section class="login-card">
+      <div class="eyebrow">Area Admin & Koas</div>
+      <h1>Masuk ke pemindai</h1>
+      <p class="login-copy">Gunakan ID akun staf yang sama dengan dashboard untuk membuka kamera presensi.</p>
+      <form id="login-form" class="form" novalidate>
+        <label class="field" for="inp-id">ID Admin atau Koas
+          <input type="text" id="inp-id" autocomplete="username" placeholder="Masukkan ID akun" required>
+        </label>
+        <label class="field" for="inp-pass">Kata sandi
+          <input type="password" id="inp-pass" autocomplete="current-password" placeholder="Masukkan kata sandi" required>
+        </label>
+        <button type="submit" id="btn-login" class="btn btn-primary">Masuk</button>
+      </form>
+      <div id="alert-login" class="alert alert-error" role="alert" hidden></div>
+    </section>
+    <p class="login-note">Sesi presensi mengikuti jadwal aktif pada sistem.</p>
   </div>
+</div>
 
-  <!-- ==================== HALAMAN UTAMA SCANNER & KONTROL SESI ==================== -->
-  <div id="section-scanner" class="d-none">
-    
-    <!-- Profil Card -->
-    <div class="card shadow-sm mb-4 card-admin">
-      <div class="card-body py-3 d-flex justify-content-between align-items-center flex-wrap">
+<div id="section-scanner" class="app-shell" hidden>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true">
+        <svg width="23" height="23" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2"></path>
+          <path d="M8 12h8M12 8v8"></path>
+        </svg>
+      </span>
+      <span><strong>Portal Praktikum</strong><small>Program Studi S1 Pendidikan IPA</small></span>
+    </div>
+    <div class="profile">
+      <div class="profile-info">
+        <strong id="txt-nama-admin">Staf</strong>
+        <small><span id="txt-peran">Admin</span> · pemindai presensi</small>
+      </div>
+      <button type="button" id="btn-logout" class="btn btn-danger">Keluar</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="page-heading">
+      <div>
+        <span id="badge-status-sesi" class="badge badge-neutral">Memeriksa sesi...</span>
+        <h1>Pemindai presensi</h1>
+        <p>Scan QR praktikan. Sesi dan pertemuan mengikuti data aktif sistem; status kehadiran dihitung saat scan.</p>
+      </div>
+    </section>
+
+    <div class="main-grid">
+      <section class="card">
+        <div class="card-head">
+          <div><h2>Sesi aktif</h2><p>Daftar sesi berasal dari sistem; halaman ini tidak mengubah jadwal.</p></div>
+          <button type="button" id="btn-refresh-status" class="btn">Perbarui</button>
+        </div>
+        <div class="card-body">
+          <div id="sesi-kosong" class="empty" hidden>Belum ada sesi aktif. Pemindaian presensi belum dapat dilakukan.</div>
+          <div id="label-rekap-sesi" class="session-select" hidden>
+            <label class="field" for="sel-rekap-sesi">Sesi prioritas untuk scan dan rekap
+              <select id="sel-rekap-sesi"></select>
+            </label>
+            <small class="field-hint">Jika QR cocok dengan beberapa sesi, pilihan ini diprioritaskan; sistem tetap memvalidasi pendaftaran praktikan.</small>
+          </div>
+          <div id="active-session-list" class="session-list"></div>
+        </div>
+      </section>
+
+      <section class="card scanner-card">
+        <div class="card-head">
+          <div><h2>Scan QR praktikan</h2><p>Pastikan QR terlihat jelas dan kamera mendapat izin akses.</p></div>
+          <span id="badge-camera" class="badge badge-neutral">Kamera mati</span>
+        </div>
+        <div class="card-body">
+          <div id="reader" class="reader-frame" aria-label="Pratinjau kamera pemindai QR"></div>
+          <div class="camera-actions">
+            <button type="button" id="btn-camera" class="btn btn-primary" disabled>Aktifkan kamera</button>
+            <button type="button" id="btn-switch-camera" class="btn" aria-label="Beralih ke kamera berikutnya" hidden disabled>Ganti kamera</button>
+          </div>
+          <div id="log-panel" class="log-panel" data-state="neutral" role="status" aria-live="polite">
+            <div id="log-status" class="log-title">Kamera belum diaktifkan</div>
+            <div id="log-detail" class="log-detail">Aktifkan kamera untuk mulai mencatat presensi.</div>
+          </div>
+          <div id="choice-panel" class="choice-panel" hidden>
+            <h3>Pilih sesi untuk praktikan ini</h3>
+            <p>Praktikan terdaftar pada lebih dari satu sesi aktif. Pilihan ini hanya untuk scan saat ini.</p>
+            <div id="choice-list" class="choice-list"></div>
+            <button type="button" id="btn-cancel-choice" class="btn" style="margin-top:10px">Batalkan pilihan</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card table-card">
+      <div class="card-head">
         <div>
-          <span class="badge bg-success py-2 px-3">Active: <span id="txt-peran">Asisten</span></span>
-          <h4 class="fw-bold text-dark m-0 mt-2" id="txt-nama-admin">Nama Asisten</h4>
+          <h2>Daftar hadir sesi</h2>
+          <p id="txt-sesi-rekap">Pilih sesi aktif untuk melihat daftar hadirnya.</p>
         </div>
-        <button onclick="logout()" class="btn btn-outline-danger btn-sm fw-bold">Keluar</button>
+        <div class="table-meta"><span id="txt-total-hadir-sesi" class="badge">0 hadir</span></div>
       </div>
-    </div>
-
-    <!-- KONTROL SESI AKTIF PRAKTIKUM -->
-    <div class="card shadow-sm mb-4">
-      <div class="card-header bg-dark text-white py-3">
-        <h6 class="m-0 fw-bold">Kontrol Sesi Aktif Praktikum</h6>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Waktu</th><th>NIM</th><th>Nama praktikan</th><th>Status</th></tr></thead>
+          <tbody id="table-rekap-admin-body"></tbody>
+        </table>
       </div>
-      <div class="card-body">
-        <div class="row g-3">
-          <div class="col-md-5">
-            <label class="form-label fw-bold small">Mata Kuliah Berjalan</label>
-            <select id="opt-mk" class="form-select"></select>
-          </div>
-          <div class="col-md-3">
-            <label class="form-label fw-bold small">Pertemuan Ke-</label>
-            <input type="number" id="inp-pertemuan" class="form-control" min="1" max="16">
-          </div>
-          <div class="col-md-2">
-            <label class="form-label fw-bold small">Sesi Ke-</label>
-            <input type="number" id="inp-sesi" class="form-control" min="1" max="5">
-          </div>
-          <div class="col-md-2 d-flex align-items-end">
-            <button onclick="updateSesiBackend()" id="btn-update-sesi" class="btn btn-warning w-100 fw-bold">Update</button>
-          </div>
-        </div>
-        <div id="alert-sesi" class="alert alert-success d-none mt-3 py-2 text-center small fw-bold">✔ Sesi aktif praktikum berhasil diperbarui di Google Sheets!</div>
-      </div>
-    </div>
-
-    <!-- Alat Scan Kamera -->
-    <div class="card shadow-lg border-0 rounded-3 mb-4">
-      <div class="card-body p-4 text-center">
-        <p class="text-muted small">Arahkan kamera ke QR Code mahasiswa</p>
-
-        <div id="reader" class="scanner-box mx-auto" style="width: 100%; max-width: 350px; min-height: 250px;"></div>
-        
-        <div class="mt-3">
-          <button id="btn-camera" onclick="initScanner()" class="btn btn-primary fw-bold px-4">Aktifkan Kamera</button>
-        </div>
-
-        <div class="mt-4 p-3 bg-light rounded border text-start">
-          <h6 class="fw-bold text-secondary m-0">Log Hasil Terakhir:</h6>
-          <div id="log-status" class="text-muted mt-2 fw-bold">Kamera Belum Aktif</div>
-          <p id="log-detail" class="m-0 text-secondary small mt-1"></p>
-        </div>
-      </div>
-    </div>
-
-    <!-- FITUR BARU: TABEL REKAP PRESENSI MAHASISWA PADA SESI BERJALAN -->
-    <div class="card shadow-sm border-0 rounded-3">
-      <div class="card-header bg-secondary text-white py-3 d-flex justify-content-between align-items-center">
-        <h6 class="m-0 fw-bold">Daftar Hadir Sesi Ini (<span id="txt-total-hadir-sesi">0</span> Mahasiswa)</h6>
-      </div>
-      <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 350px; overflow-y: auto;">
-          <table class="table table-striped table-hover m-0 align-middle" style="font-size: 0.88rem;">
-            <thead class="table-light sticky-top">
-              <tr>
-                <th style="width: 90px;">Waktu</th>
-                <th style="width: 120px;">NIM</th>
-                <th>Nama Mahasiswa</th>
-                <th style="width: 110px; text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody id="table-rekap-admin-body">
-              <tr>
-                <td colspan="4" class="text-center py-4 text-muted">Belum ada mahasiswa yang melakukan presensi pada sesi ini.</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
+    </section>
+  </main>
 </div>
 
 <script>
-  let html5QrcodeScanner;
-  let loggedInEmail = "";
+  const WEB_APP_URL = document.getElementById("web-app-url").value;
+  const el = id => document.getElementById(id);
+  const state = {
+    token: "", nama: "", peran: "", sesiAktif: [], kodeSesiRekap: "",
+    scanner: null, kameraAktif: false, mulaiKamera: false, prosesScan: false,
+    nimMenungguPilihan: "", timerLanjut: 0, daftarKamera: [], indeksKamera: -1
+  };
 
-  function prosesLogin() {
-    const email = document.getElementById('inp-email').value;
-    const pass = document.getElementById('inp-pass').value;
-    const webAppUrl = document.getElementById('web-app-url').value;
-    const btn = document.getElementById('btn-login');
-    const alertBox = document.getElementById('alert-login');
+  function setLog(judul, detail, status) {
+    el("log-status").textContent = judul;
+    el("log-detail").textContent = detail || "";
+    el("log-panel").dataset.state = status || "neutral";
+  }
 
-    if (!email || !pass) {
-      alertBox.innerText = "Email dan password wajib diisi!";
-      alertBox.classList.remove('d-none');
+  function tampilAlertLogin(pesan) {
+    el("alert-login").textContent = pesan;
+    el("alert-login").hidden = !pesan;
+  }
+
+  async function kirim(data) {
+    const response = await fetch(WEB_APP_URL, { method: "POST", body: JSON.stringify(data) });
+    if (!response.ok) throw new Error("Server merespons dengan kode " + response.status + ".");
+    return response.json();
+  }
+
+  async function kirimTerautentikasi(data) {
+    const response = await kirim(Object.assign({}, data, { token: state.token }));
+    const pesan = response && response.message ? response.message : "";
+    if (!response || !response.success) {
+      if (/sesi login pemindai berakhir|token login wajib|sesi login sudah berakhir/i.test(pesan)) {
+        await logout(true);
+        throw new Error("Sesi login berakhir. Silakan masuk kembali.");
+      }
+    }
+    return response;
+  }
+
+  async function prosesLogin(event) {
+    if (event) event.preventDefault();
+    const id = el("inp-id").value.trim();
+    const password = el("inp-pass").value;
+    const tombol = el("btn-login");
+    if (!id || !password) {
+      tampilAlertLogin("ID dan kata sandi wajib diisi.");
       return;
     }
 
-    btn.disabled = true;
-    btn.innerHTML = `<span class="spinner-border spinner-border-sm"></span> Memverifikasi...`;
-    alertBox.classList.add('d-none');
+    tombol.disabled = true;
+    tombol.textContent = "Memverifikasi...";
+    tampilAlertLogin("");
+    try {
+      const response = await kirim({ action: "login", id: id, password: password });
+      if (!response || !response.success) throw new Error(response && response.message ? response.message : "Login tidak berhasil.");
+      if (!response.token) throw new Error("Server tidak memberikan token sesi. Perbarui deployment sistem lalu coba lagi.");
 
-    fetch(webAppUrl, {
-      method: "POST",
-      body: JSON.stringify({ action: "login", email: email, password: pass })
-    })
-    .then(res => res.json())
-    .then(data => {
-      btn.disabled = false;
-      btn.innerText = "Masuk Sistem";
-
-      if (data.success) {
-        loggedInEmail = email;
-        
-        document.getElementById('section-login').classList.add('d-none');
-        document.getElementById('section-scanner').classList.remove('d-none');
-        
-        document.getElementById('txt-nama-admin').innerText = data.nama;
-        document.getElementById('txt-peran').innerText = data.peran;
-
-        if(data.sesi) {
-          document.getElementById('inp-pertemuan').value = data.sesi.pertemuan || "";
-          document.getElementById('inp-sesi').value = data.sesi.sesi_ke || "";
-        }
-        
-        let selectMk = document.getElementById('opt-mk');
-        selectMk.innerHTML = "";
-        if(data.pilihan_mk) {
-          data.pilihan_mk.forEach(function(mk) {
-            let opt = document.createElement('option');
-            opt.value = mk.kode;
-            opt.text = mk.kode + " - " + mk.nama;
-            if(data.sesi && mk.kode === data.sesi.kode_mk) opt.selected = true;
-            selectMk.appendChild(opt);
-          });
-        }
-
-        // FITUR BARU: Tampilkan rekap data presensi awal
-        renderTabelAdmin(data.rekap_admin);
-
-      } else {
-        alertBox.innerText = data.message;
-        alertBox.classList.remove('d-none');
-      }
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.innerText = "Masuk Sistem";
-      alertBox.innerText = "Gagal terhubung ke server. Pastikan URL Web App benar.";
-      alertBox.classList.remove('d-none');
-      console.error(err);
-    });
+      state.token = response.token;
+      state.nama = response.nama || "";
+      state.peran = response.peran || "";
+      el("txt-nama-admin").textContent = state.nama || "Staf";
+      el("txt-peran").textContent = state.peran || "Staf";
+      el("section-login").hidden = true;
+      el("section-scanner").hidden = false;
+      el("inp-pass").value = "";
+      renderTabelAdmin([]);
+      setLog("Memeriksa sesi aktif...", "Daftar sesi akan dimuat dari sistem.", "neutral");
+      await perbaruiStatusSesi();
+    } catch (error) {
+      tampilAlertLogin(error.message || "Tidak dapat menghubungi server. Periksa koneksi dan URL Web App.");
+      console.error(error);
+    } finally {
+      tombol.disabled = false;
+      tombol.textContent = "Masuk";
+    }
   }
 
-  function updateSesiBackend() {
-    const webAppUrl = document.getElementById('web-app-url').value;
-    const mkSelected = document.getElementById('opt-mk').value;
-    const ptmInput = document.getElementById('inp-pertemuan').value;
-    const sesiInput = document.getElementById('inp-sesi').value;
-    const btn = document.getElementById('btn-update-sesi');
-    const alertBox = document.getElementById('alert-sesi');
+  function teksSesi(sesi) {
+    const nama = sesi.nama_sesi || sesi.kode_sesi || "Sesi";
+    const mk = sesi.kode_mk ? " · " + sesi.kode_mk : "";
+    const pertemuan = sesi.pertemuan ? " · Pertemuan " + sesi.pertemuan : "";
+    return nama + mk + pertemuan;
+  }
 
-    if(!mkSelected || !ptmInput || !sesiInput) {
-      alert("Mata kuliah, pertemuan, dan sesi tidak boleh kosong!");
+  function renderSesiAktif(list, kodeTerpilih) {
+    const pilih = el("sel-rekap-sesi");
+    const daftar = el("active-session-list");
+    const sebelumnya = pilih.value;
+    const sesi = Array.isArray(list) ? list : [];
+    state.sesiAktif = sesi;
+    pilih.replaceChildren();
+    daftar.replaceChildren();
+
+    if (!sesi.length) {
+      el("badge-status-sesi").textContent = "Tidak ada sesi aktif";
+      el("badge-status-sesi").className = "badge badge-neutral";
+      el("sesi-kosong").hidden = false;
+      el("label-rekap-sesi").hidden = true;
+      perbaruiKontrolKamera();
+      el("txt-sesi-rekap").textContent = "Belum ada sesi aktif.";
       return;
     }
 
-    btn.disabled = true;
-    btn.innerText = "...";
+    el("badge-status-sesi").textContent = sesi.length + " sesi aktif";
+    el("badge-status-sesi").className = "badge badge-ok";
+    el("sesi-kosong").hidden = true;
+    el("label-rekap-sesi").hidden = false;
 
-    fetch(webAppUrl, {
-      method: "POST",
-      body: JSON.stringify({
-        action: "update_sesi",
-        kode_mk: mkSelected,
-        pertemuan: ptmInput,
-        sesi_ke: sesiInput
-      })
-    })
-    .then(response => response.json())
-    .then(res => {
-      btn.disabled = false;
-      btn.innerText = "Update";
-      
-      if(res.success) {
-        alertBox.classList.remove('d-none');
-        setTimeout(() => alertBox.classList.add('d-none'), 3000);
-        
-        // FITUR BARU: Update isi tabel rekap berdasarkan sesi baru yang dipilih
-        renderTabelAdmin(res.rekap_admin);
-      } else {
-        alert("Gagal memperbarui sesi: " + res.message);
-      }
-    })
-    .catch(err => {
-      btn.disabled = false;
-      btn.innerText = "Update";
-      alert("Terjadi kesalahan koneksi saat memperbarui sesi.");
-      console.error(err);
+    sesi.forEach(function (item) {
+      const option = document.createElement("option");
+      option.value = item.kode_sesi;
+      option.textContent = teksSesi(item);
+      pilih.appendChild(option);
+
+      const kartu = document.createElement("article");
+      kartu.className = "session-item";
+      const nama = document.createElement("strong");
+      nama.textContent = item.nama_sesi || item.kode_sesi || "Sesi aktif";
+      const detail = document.createElement("p");
+      const waktu = item.mulai || item.selesai ? " · " + (item.mulai || "--:--") + "–" + (item.selesai || "--:--") : "";
+      const sumber = String(item.sumber || "").toUpperCase() === "OTOMATIS" ? "Otomatis · jadwal" : "Manual";
+      detail.textContent = (item.kode_mk || "-") + " · Pertemuan " + (item.pertemuan || "-") + waktu + " · " + sumber;
+      kartu.append(nama, detail);
+      daftar.appendChild(kartu);
     });
+
+    const valid = sesi.some(function (item) { return item.kode_sesi === kodeTerpilih; }) ? kodeTerpilih :
+      (sesi.some(function (item) { return item.kode_sesi === sebelumnya; }) ? sebelumnya : sesi[0].kode_sesi);
+    pilih.value = valid;
+    state.kodeSesiRekap = valid;
+    perbaruiJudulRekap();
+    perbaruiKontrolKamera();
   }
 
-  // FITUR BARU: FUNGSI RENDER TABEL DAFTAR HADIR ADMIN SECARA REAL-TIME
+  function perbaruiJudulRekap() {
+    const dipilih = state.sesiAktif.filter(function (item) { return item.kode_sesi === state.kodeSesiRekap; })[0];
+    el("txt-sesi-rekap").textContent = dipilih ? teksSesi(dipilih) : "Belum ada sesi aktif.";
+  }
+
+  async function terapkanStatus(response) {
+    const sebelumnyaAktif = state.sesiAktif.length > 0;
+    renderSesiAktif(response.sesi_aktif, response.kode_sesi);
+    renderTabelAdmin(response.rekap_admin);
+    if (!state.sesiAktif.length) {
+      if (state.scanner) await hentikanKamera();
+      setLog("Belum ada sesi aktif", "Pemindaian mengikuti jadwal aktif. Perbarui status setelah sesi tersedia.", "warning");
+    } else if (!state.kameraAktif || !sebelumnyaAktif) {
+      setLog("Sesi siap", "Aktifkan kamera untuk mulai scan QR praktikan.", "neutral");
+    }
+  }
+
+  async function perbaruiStatusSesi(kodeSesi) {
+    if (!state.token) return;
+    if (state.prosesScan || state.nimMenungguPilihan) return;
+    const tombol = el("btn-refresh-status");
+    const pilih = el("sel-rekap-sesi");
+    tombol.disabled = true;
+    pilih.disabled = true;
+    tombol.textContent = "Memuat...";
+    try {
+      const response = await kirimTerautentikasi({ action: "status", kode_sesi: kodeSesi || state.kodeSesiRekap });
+      if (!response || !response.success) throw new Error(response && response.message ? response.message : "Status sesi tidak dapat dimuat.");
+      await terapkanStatus(response);
+    } catch (error) {
+      setLog("Gagal memperbarui sesi", error.message || "Periksa koneksi lalu coba lagi.", "error");
+      console.error(error);
+    } finally {
+      tombol.disabled = !state.token || state.prosesScan || !!state.nimMenungguPilihan;
+      pilih.disabled = !state.sesiAktif.length || state.prosesScan || !!state.nimMenungguPilihan;
+      tombol.textContent = "Perbarui";
+    }
+  }
+
   function renderTabelAdmin(listMhs) {
-    const tbody = document.getElementById('table-rekap-admin-body');
-    const counterText = document.getElementById('txt-total-hadir-sesi');
-    
-    tbody.innerHTML = "";
-    
-    if(!listMhs || listMhs.length === 0) {
-      counterText.innerText = "0";
-      tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-muted">Belum ada mahasiswa yang melakukan presensi pada sesi ini.</td></tr>`;
+    const tbody = el("table-rekap-admin-body");
+    const daftar = Array.isArray(listMhs) ? listMhs : [];
+    tbody.replaceChildren();
+    el("txt-total-hadir-sesi").textContent = daftar.length + " hadir";
+    perbaruiJudulRekap();
+    if (!daftar.length) {
+      const baris = document.createElement("tr");
+      const sel = document.createElement("td");
+      sel.colSpan = 4;
+      sel.className = "table-empty";
+      sel.textContent = "Belum ada praktikan yang presensi pada sesi ini.";
+      baris.appendChild(sel);
+      tbody.appendChild(baris);
       return;
     }
-    
-    counterText.innerText = listMhs.length;
-    
-    // LOGIKA BARU: Mengelompokkan mahasiswa berdasarkan properti 'kelompok'
-    let kelompokMap = {};
-    listMhs.forEach(function(mhs) {
-      if (!kelompokMap[mhs.kelompok]) {
-        kelompokMap[mhs.kelompok] = [];
-      }
-      kelompokMap[mhs.kelompok].push(mhs);
+
+    const kelompok = new Map();
+    daftar.forEach(function (mhs) {
+      const nama = mhs.kelompok || "Tanpa Kelompok";
+      if (!kelompok.has(nama)) kelompok.set(nama, []);
+      kelompok.get(nama).push(mhs);
     });
-    
-    // Lakukan looping untuk menggambar header kelompok dan anggotanya
-    for (let namaKelompok in kelompokMap) {
-      // 1. Buat Baris Header Kelompok (Spanning 4 Kolom)
-      let trHeader = document.createElement('tr');
-      trHeader.className = "table-dark text-white fw-bold";
-      trHeader.innerHTML = `<td colspan="4" class="py-2 text-uppercase font-monospace" style="letter-spacing: 1px;">📁 ${namaKelompok} (${kelompokMap[namaKelompok].length} Mhs)</td>`;
-      tbody.appendChild(trHeader);
-      
-      // 2. Tampilkan baris mahasiswa yang masuk dalam kelompok tersebut
-      kelompokMap[namaKelompok].forEach(function(mhs) {
-        let classStatus = mhs.status === "Hadir" ? 'status-hadir' : 'status-lambat';
-        let trMhs = document.createElement('tr');
-        trMhs.innerHTML = `
-          <td class="text-muted fw-bold">${mhs.waktu}</td>
-          <td class="text-primary fw-bold">${mhs.nim}</td>
-          <td class="fw-semibold text-dark">${mhs.nama}</td>
-          <td><span class="${classStatus}">${mhs.status}</span></td>
-        `;
-        tbody.appendChild(trMhs);
+
+    kelompok.forEach(function (anggota, namaKelompok) {
+      const header = document.createElement("tr");
+      header.className = "group-row";
+      const selHeader = document.createElement("td");
+      selHeader.colSpan = 4;
+      selHeader.textContent = namaKelompok + " · " + anggota.length + " praktikan";
+      header.appendChild(selHeader);
+      tbody.appendChild(header);
+
+      anggota.forEach(function (mhs) {
+        const row = document.createElement("tr");
+        [mhs.waktu, mhs.nim, mhs.nama].forEach(function (value) {
+          const cell = document.createElement("td");
+          cell.textContent = value == null ? "" : String(value);
+          row.appendChild(cell);
+        });
+        const statusCell = document.createElement("td");
+        const badge = document.createElement("span");
+        badge.className = "status-chip" + (mhs.status === "Terlambat" ? " late" : "");
+        badge.textContent = mhs.status || "-";
+        statusCell.appendChild(badge);
+        row.appendChild(statusCell);
+        tbody.appendChild(row);
       });
+    });
+  }
+
+  function tampilkanPilihanSesi(nim, pilihan) {
+    state.nimMenungguPilihan = nim;
+    state.prosesScan = false;
+    el("choice-list").replaceChildren();
+    (Array.isArray(pilihan) ? pilihan : []).forEach(function (sesi) {
+      const tombol = document.createElement("button");
+      tombol.type = "button";
+      tombol.className = "btn";
+      const label = document.createElement("span");
+      const nama = sesi.nama_sesi || sesi.kode_sesi;
+      label.textContent = nama + " · " + (sesi.kode_mk || "-") + " · Pertemuan " + (sesi.pertemuan || "-");
+      tombol.appendChild(label);
+      tombol.addEventListener("click", function () { prosesHasilScan(nim, sesi.kode_sesi); });
+      el("choice-list").appendChild(tombol);
+    });
+    el("choice-panel").hidden = false;
+    el("btn-refresh-status").disabled = true;
+    el("sel-rekap-sesi").disabled = true;
+    perbaruiKontrolKamera();
+    setLog("Pilih sesi presensi", "QR terbaca untuk NIM " + nim + ". Pilih sesi yang sesuai untuk melanjutkan.", "warning");
+  }
+
+  function perbaruiKontrolKamera() {
+    const tombolKamera = el("btn-camera");
+    const tombolGanti = el("btn-switch-camera");
+    tombolKamera.textContent = state.kameraAktif ? "Matikan kamera" : "Aktifkan kamera";
+    tombolKamera.disabled = !state.sesiAktif.length || state.mulaiKamera || state.prosesScan;
+    tombolGanti.hidden = !state.kameraAktif || state.daftarKamera.length < 2;
+    tombolGanti.disabled = tombolGanti.hidden || state.mulaiKamera || state.prosesScan || !!state.nimMenungguPilihan;
+    tombolGanti.textContent = state.daftarKamera.length > 1
+      ? "Ganti kamera (" + (state.indeksKamera + 1) + "/" + state.daftarKamera.length + ")"
+      : "Ganti kamera";
+    const aktif = state.daftarKamera[state.indeksKamera];
+    tombolGanti.setAttribute("aria-label", aktif
+      ? "Ganti kamera. Kamera aktif: " + (aktif.label || (state.indeksKamera + 1) + " dari " + state.daftarKamera.length)
+      : "Ganti kamera");
+  }
+
+  function daftarKameraUnik(daftar) {
+    const ids = new Set();
+    return (Array.isArray(daftar) ? daftar : []).filter(function (kamera) {
+      if (!kamera || !kamera.id || ids.has(kamera.id)) return false;
+      ids.add(kamera.id);
+      return true;
+    });
+  }
+
+  function indeksKameraBelakang(daftar) {
+    const belakang = daftar.findIndex(function (kamera) { return /back|rear|environment|belakang/i.test(kamera.label || ""); });
+    return belakang >= 0 ? belakang : daftar.length - 1;
+  }
+
+  function mulaiStreamKamera(scanner, target) {
+    return scanner.start(target, { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+      function (decodedText) { mulaiPemindaian(decodedText); }, function () {});
+  }
+
+  function tampilkanKameraAktif() {
+    const total = state.daftarKamera.length;
+    el("badge-camera").textContent = total > 1 ? "Kamera " + (state.indeksKamera + 1) + "/" + total : "Kamera aktif";
+    el("badge-camera").className = "badge badge-ok";
+    perbaruiKontrolKamera();
+  }
+
+  function lanjutkanScan() {
+    window.clearTimeout(state.timerLanjut);
+    state.timerLanjut = window.setTimeout(async function () {
+      if (!state.token || !state.scanner || !state.kameraAktif || state.nimMenungguPilihan) return;
+      state.prosesScan = false;
+      try {
+        await state.scanner.resume();
+        setLog("Kamera aktif", "Siap scan barcode berikutnya.", "neutral");
+      } catch (error) {
+        setLog("Kamera perlu diaktifkan ulang", error.message || "Tekan tombol kamera untuk mencoba lagi.", "warning");
+        console.error(error);
+      }
+      el("btn-refresh-status").disabled = !state.token;
+      el("sel-rekap-sesi").disabled = !state.sesiAktif.length;
+      perbaruiKontrolKamera();
+    }, 2200);
+  }
+
+  async function prosesHasilScan(nim, kodeSesi) {
+    state.prosesScan = true;
+    perbaruiKontrolKamera();
+    el("choice-panel").hidden = true;
+    setLog("Memproses presensi", "Memeriksa NIM " + nim + " pada sesi aktif...", "neutral");
+    try {
+      const response = await kirimTerautentikasi({ action: "scan", nim: nim, kode_sesi: kodeSesi || "" });
+      if (response && response.perlu_pilih) {
+        tampilkanPilihanSesi(nim, response.pilihan);
+        return;
+      }
+      if (!response || !response.success) throw new Error(response && response.message ? response.message : "Presensi tidak berhasil dicatat.");
+
+      state.nimMenungguPilihan = "";
+      renderTabelAdmin(response.rekap_admin);
+      const detail = [
+        "Nama: " + (response.nama || "-"),
+        "NIM: " + (response.nim || nim),
+        "Mata kuliah: " + (response.kode_mk || "-"),
+        "Sesi: " + (response.kode_sesi || "-") + " · Pertemuan " + (response.pertemuan || "-"),
+        "Status: " + (response.status || "-")
+      ];
+      if (response.pindah_sesi) detail.push("Catatan: presensi dicatat pada sesi yang sedang aktif.");
+      if (state.peran.toLowerCase() === "koas") {
+        if (response.koas_dicatat) detail.push("Presensi Koas ikut dicatat otomatis.");
+        else if (response.koas_catatan) detail.push(response.koas_catatan);
+        else detail.push("Presensi Koas untuk sesi ini sudah tercatat.");
+      }
+      setLog("Presensi berhasil dicatat", detail.join("\n"), "success");
+      lanjutkanScan();
+    } catch (error) {
+      state.nimMenungguPilihan = "";
+      setLog("Presensi gagal", error.message || "Periksa QR dan sesi aktif, lalu coba lagi.", "error");
+      console.error(error);
+      lanjutkanScan();
     }
   }
 
-  function initScanner() {
-    document.getElementById('log-status').innerText = "Meminta izin kamera...";
-    document.getElementById('btn-camera').style.display = 'none';
+  async function mulaiPemindaian(decodedText) {
+    if (state.prosesScan || state.nimMenungguPilihan || !state.kameraAktif) return;
+    const nim = String(decodedText || "").trim();
+    if (!nim) return;
+    state.prosesScan = true;
+    perbaruiKontrolKamera();
+    try {
+      state.scanner.pause(true);
+    } catch (error) {
+      state.prosesScan = false;
+      perbaruiKontrolKamera();
+      setLog("Pemindai tidak siap", error.message || "Matikan lalu aktifkan kembali kamera.", "error");
+      console.error(error);
+      return;
+    }
+    await prosesHasilScan(nim, state.kodeSesiRekap);
+  }
 
-    html5QrcodeScanner = new Html5Qrcode("reader");
-    
-    const qrCodeSuccessCallback = (decodedText, decodedResult) => {
-      html5QrcodeScanner.pause(true);
-      
-      document.getElementById('log-status').innerHTML = `<span class="spinner-border spinner-border-sm text-primary"></span> Memproses NIM: ${decodedText}...`;
-      document.getElementById('log-detail').innerText = "";
-
-      const webAppUrl = document.getElementById('web-app-url').value;
-      
-      fetch(webAppUrl, {
-        method: "POST",
-        body: JSON.stringify({
-          action: "scan",
-          nim: decodedText,
-          emailAdmin: loggedInEmail
-        })
-      })
-      .then(res => res.json())
-      .then(response => {
-        if (response.success) {
-          document.getElementById('log-status').innerHTML = `<span class="text-success fw-bold">✔ BERHASIL MENCATAT</span>`;
-          document.getElementById('log-detail').innerHTML = `<strong>Nama:</strong> ${response.nama}<br><strong>NIM:</strong> ${decodedText}<br><strong>Status:</strong> <span class="badge bg-success">${response.status}</span>`;
-          
-          // FITUR BARU: Perbarui isi tabel rekap admin secara instan setelah scan berhasil
-          renderTabelAdmin(response.rekap_admin);
-        } else {
-          document.getElementById('log-status').innerHTML = `<span class="text-danger fw-bold">❌ GAGAL</span>`;
-          document.getElementById('log-detail').innerText = response.message;
+  async function mulaiKamera() {
+    if (state.mulaiKamera || state.kameraAktif || !state.sesiAktif.length) return;
+    if (typeof Html5Qrcode === "undefined") {
+      setLog("Pustaka pemindai tidak tersedia", "Periksa koneksi internet lalu muat ulang halaman.", "error");
+      return;
+    }
+    state.mulaiKamera = true;
+    perbaruiKontrolKamera();
+    setLog("Meminta izin kamera", "Izinkan akses kamera pada browser jika diminta.", "neutral");
+    const scanner = new Html5Qrcode("reader");
+    try {
+      let kamera = { facingMode: "environment" };
+      try {
+        state.daftarKamera = daftarKameraUnik(await Html5Qrcode.getCameras());
+        if (state.daftarKamera.length) {
+          state.indeksKamera = indeksKameraBelakang(state.daftarKamera);
+          kamera = state.daftarKamera[state.indeksKamera].id;
         }
-        
-        setTimeout(() => {
-          html5QrcodeScanner.resume();
-          document.getElementById('log-status').innerText = "Siap scan barcode berikutnya...";
-        }, 2500);
-      })
-      .catch(err => {
-        document.getElementById('log-status').innerHTML = `<span class="text-danger fw-bold">❌ ERROR JARINGAN</span>`;
-        setTimeout(() => html5QrcodeScanner.resume(), 3000);
-      });
-    };
-
-    const config = { fps: 10, qrbox: { width: 220, height: 220 } };
-
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        let cameraId = devices[devices.length - 1].id;
-        html5QrcodeScanner.start(cameraId, config, qrCodeSuccessCallback);
-      } else {
-        html5QrcodeScanner.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
+      } catch (error) {
+        state.daftarKamera = [];
+        state.indeksKamera = -1;
+        console.info("Daftar kamera tidak tersedia; mencoba kamera belakang.", error);
       }
-    })
-    .catch(err => {
-      document.getElementById('log-status').innerText = "Gagal mengakses kamera: " + err;
-      document.getElementById('btn-camera').style.display = 'inline-block';
-    });
+      await mulaiStreamKamera(scanner, kamera);
+      if (state.daftarKamera.length < 2) {
+        try {
+          const daftarBaru = daftarKameraUnik(await Html5Qrcode.getCameras());
+          if (daftarBaru.length >= state.daftarKamera.length) {
+            const idAktif = typeof kamera === "string" ? kamera : "";
+            state.daftarKamera = daftarBaru;
+            const indeksAktif = state.daftarKamera.findIndex(function (item) { return item.id === idAktif; });
+            state.indeksKamera = indeksAktif >= 0 ? indeksAktif :
+              (state.daftarKamera.length ? indeksKameraBelakang(state.daftarKamera) : -1);
+          }
+        } catch (error) {
+          console.info("Daftar kamera tidak dapat diperbarui setelah izin diberikan.", error);
+        }
+      }
+      state.scanner = scanner;
+      state.kameraAktif = true;
+      tampilkanKameraAktif();
+      setLog("Kamera aktif", "Arahkan kamera ke QR praktikan.", "neutral");
+    } catch (error) {
+      try { await scanner.clear(); } catch (clearError) { console.warn("Pemindai tidak dapat dibersihkan.", clearError); }
+      state.scanner = null;
+      state.kameraAktif = false;
+      state.daftarKamera = [];
+      state.indeksKamera = -1;
+      el("badge-camera").textContent = "Kamera mati";
+      setLog("Kamera tidak dapat diaktifkan", error.message || "Pastikan halaman dibuka melalui HTTPS dan izin kamera diberikan.", "error");
+      console.error(error);
+    } finally {
+      state.mulaiKamera = false;
+      perbaruiKontrolKamera();
+    }
   }
 
-  function logout() {
-    if(html5QrcodeScanner) {
-      html5QrcodeScanner.stop().catch(() => {});
+  async function gantiKamera() {
+    if (!state.kameraAktif || !state.scanner || state.daftarKamera.length < 2 ||
+        state.mulaiKamera || state.prosesScan || state.nimMenungguPilihan) return;
+    const scanner = state.scanner, indeksLama = state.indeksKamera;
+    const indeksBaru = (indeksLama + 1) % state.daftarKamera.length;
+    const kameraBaru = state.daftarKamera[indeksBaru];
+    state.mulaiKamera = true;
+    perbaruiKontrolKamera();
+    setLog("Mengganti kamera", "Menghubungkan ke kamera berikutnya...", "neutral");
+    try {
+      await scanner.stop();
+      state.kameraAktif = false;
+      await mulaiStreamKamera(scanner, kameraBaru.id);
+      state.indeksKamera = indeksBaru;
+      state.kameraAktif = true;
+      tampilkanKameraAktif();
+      setLog("Kamera diganti", "Pemindai menggunakan " + (kameraBaru.label || "kamera " + (indeksBaru + 1)) + ".", "neutral");
+    } catch (error) {
+      if (!state.kameraAktif) {
+        try {
+          await mulaiStreamKamera(scanner, state.daftarKamera[indeksLama].id);
+          state.indeksKamera = indeksLama;
+          state.kameraAktif = true;
+          tampilkanKameraAktif();
+          setLog("Kamera tidak dapat diganti", "Kamera sebelumnya dipulihkan. Periksa izin atau koneksi perangkat.", "warning");
+        } catch (pulihError) {
+          state.kameraAktif = false;
+          state.scanner = null;
+          try { await scanner.stop(); } catch (stopError) { console.warn("Kamera gagal dihentikan setelah pergantian gagal.", stopError); }
+          try { await scanner.clear(); } catch (clearError) { console.warn("Tampilan pemindai tidak dapat dibersihkan.", clearError); }
+          state.daftarKamera = [];
+          state.indeksKamera = -1;
+          el("badge-camera").textContent = "Kamera mati";
+          el("badge-camera").className = "badge badge-neutral";
+          setLog("Pergantian kamera gagal", "Kamera sebelumnya juga tidak dapat dipulihkan. Aktifkan kembali kamera untuk mencoba lagi.", "error");
+          console.error(pulihError);
+        }
+      } else {
+        setLog("Kamera tidak dapat diganti", "Kamera yang sedang digunakan tetap aktif.", "warning");
+      }
+      console.error(error);
+    } finally {
+      state.mulaiKamera = false;
+      perbaruiKontrolKamera();
     }
-    location.reload();
   }
+
+  async function hentikanKamera() {
+    window.clearTimeout(state.timerLanjut);
+    const scanner = state.scanner;
+    state.scanner = null;
+    state.kameraAktif = false;
+    state.mulaiKamera = false;
+    state.prosesScan = false;
+    state.nimMenungguPilihan = "";
+    state.daftarKamera = [];
+    state.indeksKamera = -1;
+    el("choice-panel").hidden = true;
+    if (scanner) {
+      try { await scanner.stop(); } catch (error) { console.warn("Kamera sudah berhenti atau gagal dihentikan.", error); }
+      try { await scanner.clear(); } catch (error) { console.warn("Tampilan pemindai tidak dapat dibersihkan.", error); }
+    }
+    el("badge-camera").textContent = "Kamera mati";
+    el("badge-camera").className = "badge badge-neutral";
+    perbaruiKontrolKamera();
+  }
+
+  async function keluar(expired) {
+    await hentikanKamera();
+    state.token = "";
+    state.nama = "";
+    state.peran = "";
+    state.sesiAktif = [];
+    state.kodeSesiRekap = "";
+    el("section-scanner").hidden = true;
+    el("section-login").hidden = false;
+    el("txt-nama-admin").textContent = "";
+    el("txt-peran").textContent = "";
+    if (expired) tampilAlertLogin("Sesi login berakhir. Silakan masuk kembali.");
+    else tampilAlertLogin("");
+  }
+
+  el("login-form").addEventListener("submit", prosesLogin);
+  el("btn-logout").addEventListener("click", function () { keluar(false); });
+  el("btn-camera").addEventListener("click", async function () {
+    if (state.kameraAktif) {
+      await hentikanKamera();
+      setLog("Kamera dimatikan", "Aktifkan kembali kamera untuk melanjutkan scan.", "neutral");
+    } else {
+      await mulaiKamera();
+    }
+  });
+  el("btn-switch-camera").addEventListener("click", gantiKamera);
+  el("btn-refresh-status").addEventListener("click", function () { perbaruiStatusSesi(); });
+  el("sel-rekap-sesi").addEventListener("change", function () { perbaruiStatusSesi(el("sel-rekap-sesi").value); });
+  el("btn-cancel-choice").addEventListener("click", function () {
+    state.nimMenungguPilihan = "";
+    el("choice-panel").hidden = true;
+    state.prosesScan = false;
+    lanjutkanScan();
+  });
 </script>
 </body>
 </html>
