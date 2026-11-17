@@ -76,7 +76,7 @@
     .reader-frame { width: 100%; min-height: 270px; overflow: hidden; border: 1px solid #24163A; border-radius: 14px; background: #1D1830; }
     #reader video { border-radius: 12px; }
     #reader__dashboard_section_swaplink { color: var(--u300); }
-    .camera-actions { display: flex; justify-content: center; margin-top: 14px; }
+    .camera-actions { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
     .log-panel { margin-top: 16px; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #FBF9FD; }
     .log-title { font-weight: 800; }
     .log-detail { margin-top: 5px; color: var(--muted); font-size: 13px; white-space: pre-line; overflow-wrap: anywhere; }
@@ -212,6 +212,7 @@
           <div id="reader" class="reader-frame" aria-label="Pratinjau kamera pemindai QR"></div>
           <div class="camera-actions">
             <button type="button" id="btn-camera" class="btn btn-primary" disabled>Aktifkan kamera</button>
+            <button type="button" id="btn-switch-camera" class="btn" aria-label="Beralih ke kamera berikutnya" hidden disabled>Ganti kamera</button>
           </div>
           <div id="log-panel" class="log-panel" data-state="neutral" role="status" aria-live="polite">
             <div id="log-status" class="log-title">Kamera belum diaktifkan</div>
@@ -251,7 +252,7 @@
   const state = {
     token: "", nama: "", peran: "", sesiAktif: [], kodeSesiRekap: "",
     scanner: null, kameraAktif: false, mulaiKamera: false, prosesScan: false,
-    nimMenungguPilihan: "", timerLanjut: 0
+    nimMenungguPilihan: "", timerLanjut: 0, daftarKamera: [], indeksKamera: -1
   };
 
   function setLog(judul, detail, status) {
@@ -342,7 +343,7 @@
       el("badge-status-sesi").className = "badge badge-neutral";
       el("sesi-kosong").hidden = false;
       el("label-rekap-sesi").hidden = true;
-      el("btn-camera").disabled = true;
+      perbaruiKontrolKamera();
       el("txt-sesi-rekap").textContent = "Belum ada sesi aktif.";
       return;
     }
@@ -351,7 +352,6 @@
     el("badge-status-sesi").className = "badge badge-ok";
     el("sesi-kosong").hidden = true;
     el("label-rekap-sesi").hidden = false;
-    el("btn-camera").disabled = state.mulaiKamera || state.prosesScan;
 
     sesi.forEach(function (item) {
       const option = document.createElement("option");
@@ -376,6 +376,7 @@
     pilih.value = valid;
     state.kodeSesiRekap = valid;
     perbaruiJudulRekap();
+    perbaruiKontrolKamera();
   }
 
   function perbaruiJudulRekap() {
@@ -486,7 +487,50 @@
     el("choice-panel").hidden = false;
     el("btn-refresh-status").disabled = true;
     el("sel-rekap-sesi").disabled = true;
+    perbaruiKontrolKamera();
     setLog("Pilih sesi presensi", "QR terbaca untuk NIM " + nim + ". Pilih sesi yang sesuai untuk melanjutkan.", "warning");
+  }
+
+  function perbaruiKontrolKamera() {
+    const tombolKamera = el("btn-camera");
+    const tombolGanti = el("btn-switch-camera");
+    tombolKamera.textContent = state.kameraAktif ? "Matikan kamera" : "Aktifkan kamera";
+    tombolKamera.disabled = !state.sesiAktif.length || state.mulaiKamera || state.prosesScan;
+    tombolGanti.hidden = !state.kameraAktif || state.daftarKamera.length < 2;
+    tombolGanti.disabled = tombolGanti.hidden || state.mulaiKamera || state.prosesScan || !!state.nimMenungguPilihan;
+    tombolGanti.textContent = state.daftarKamera.length > 1
+      ? "Ganti kamera (" + (state.indeksKamera + 1) + "/" + state.daftarKamera.length + ")"
+      : "Ganti kamera";
+    const aktif = state.daftarKamera[state.indeksKamera];
+    tombolGanti.setAttribute("aria-label", aktif
+      ? "Ganti kamera. Kamera aktif: " + (aktif.label || (state.indeksKamera + 1) + " dari " + state.daftarKamera.length)
+      : "Ganti kamera");
+  }
+
+  function daftarKameraUnik(daftar) {
+    const ids = new Set();
+    return (Array.isArray(daftar) ? daftar : []).filter(function (kamera) {
+      if (!kamera || !kamera.id || ids.has(kamera.id)) return false;
+      ids.add(kamera.id);
+      return true;
+    });
+  }
+
+  function indeksKameraBelakang(daftar) {
+    const belakang = daftar.findIndex(function (kamera) { return /back|rear|environment|belakang/i.test(kamera.label || ""); });
+    return belakang >= 0 ? belakang : daftar.length - 1;
+  }
+
+  function mulaiStreamKamera(scanner, target) {
+    return scanner.start(target, { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
+      function (decodedText) { mulaiPemindaian(decodedText); }, function () {});
+  }
+
+  function tampilkanKameraAktif() {
+    const total = state.daftarKamera.length;
+    el("badge-camera").textContent = total > 1 ? "Kamera " + (state.indeksKamera + 1) + "/" + total : "Kamera aktif";
+    el("badge-camera").className = "badge badge-ok";
+    perbaruiKontrolKamera();
   }
 
   function lanjutkanScan() {
@@ -503,11 +547,13 @@
       }
       el("btn-refresh-status").disabled = !state.token;
       el("sel-rekap-sesi").disabled = !state.sesiAktif.length;
+      perbaruiKontrolKamera();
     }, 2200);
   }
 
   async function prosesHasilScan(nim, kodeSesi) {
     state.prosesScan = true;
+    perbaruiKontrolKamera();
     el("choice-panel").hidden = true;
     setLog("Memproses presensi", "Memeriksa NIM " + nim + " pada sesi aktif...", "neutral");
     try {
@@ -548,10 +594,12 @@
     const nim = String(decodedText || "").trim();
     if (!nim) return;
     state.prosesScan = true;
+    perbaruiKontrolKamera();
     try {
       state.scanner.pause(true);
     } catch (error) {
       state.prosesScan = false;
+      perbaruiKontrolKamera();
       setLog("Pemindai tidak siap", error.message || "Matikan lalu aktifkan kembali kamera.", "error");
       console.error(error);
       return;
@@ -566,40 +614,100 @@
       return;
     }
     state.mulaiKamera = true;
-    const tombol = el("btn-camera");
-    tombol.disabled = true;
-    tombol.textContent = "Mengaktifkan kamera...";
+    perbaruiKontrolKamera();
     setLog("Meminta izin kamera", "Izinkan akses kamera pada browser jika diminta.", "neutral");
     const scanner = new Html5Qrcode("reader");
     try {
       let kamera = { facingMode: "environment" };
       try {
-        const daftarKamera = await Html5Qrcode.getCameras();
-        if (daftarKamera && daftarKamera.length) {
-          const belakang = daftarKamera.filter(function (item) { return /back|rear|environment/i.test(item.label || ""); })[0];
-          kamera = (belakang || daftarKamera[daftarKamera.length - 1]).id;
+        state.daftarKamera = daftarKameraUnik(await Html5Qrcode.getCameras());
+        if (state.daftarKamera.length) {
+          state.indeksKamera = indeksKameraBelakang(state.daftarKamera);
+          kamera = state.daftarKamera[state.indeksKamera].id;
         }
       } catch (error) {
+        state.daftarKamera = [];
+        state.indeksKamera = -1;
         console.info("Daftar kamera tidak tersedia; mencoba kamera belakang.", error);
       }
-      await scanner.start(kamera, { fps: 10, qrbox: { width: 220, height: 220 }, aspectRatio: 1 },
-        function (decodedText) { mulaiPemindaian(decodedText); }, function () {});
+      await mulaiStreamKamera(scanner, kamera);
+      if (state.daftarKamera.length < 2) {
+        try {
+          const daftarBaru = daftarKameraUnik(await Html5Qrcode.getCameras());
+          if (daftarBaru.length >= state.daftarKamera.length) {
+            const idAktif = typeof kamera === "string" ? kamera : "";
+            state.daftarKamera = daftarBaru;
+            const indeksAktif = state.daftarKamera.findIndex(function (item) { return item.id === idAktif; });
+            state.indeksKamera = indeksAktif >= 0 ? indeksAktif :
+              (state.daftarKamera.length ? indeksKameraBelakang(state.daftarKamera) : -1);
+          }
+        } catch (error) {
+          console.info("Daftar kamera tidak dapat diperbarui setelah izin diberikan.", error);
+        }
+      }
       state.scanner = scanner;
       state.kameraAktif = true;
-      tombol.disabled = false;
-      tombol.textContent = "Matikan kamera";
-      el("badge-camera").textContent = "Kamera aktif";
-      el("badge-camera").className = "badge badge-ok";
+      tampilkanKameraAktif();
       setLog("Kamera aktif", "Arahkan kamera ke QR praktikan.", "neutral");
     } catch (error) {
       try { await scanner.clear(); } catch (clearError) { console.warn("Pemindai tidak dapat dibersihkan.", clearError); }
-      tombol.disabled = !state.sesiAktif.length;
-      tombol.textContent = "Aktifkan kamera";
+      state.scanner = null;
+      state.kameraAktif = false;
+      state.daftarKamera = [];
+      state.indeksKamera = -1;
       el("badge-camera").textContent = "Kamera mati";
       setLog("Kamera tidak dapat diaktifkan", error.message || "Pastikan halaman dibuka melalui HTTPS dan izin kamera diberikan.", "error");
       console.error(error);
     } finally {
       state.mulaiKamera = false;
+      perbaruiKontrolKamera();
+    }
+  }
+
+  async function gantiKamera() {
+    if (!state.kameraAktif || !state.scanner || state.daftarKamera.length < 2 ||
+        state.mulaiKamera || state.prosesScan || state.nimMenungguPilihan) return;
+    const scanner = state.scanner, indeksLama = state.indeksKamera;
+    const indeksBaru = (indeksLama + 1) % state.daftarKamera.length;
+    const kameraBaru = state.daftarKamera[indeksBaru];
+    state.mulaiKamera = true;
+    perbaruiKontrolKamera();
+    setLog("Mengganti kamera", "Menghubungkan ke kamera berikutnya...", "neutral");
+    try {
+      await scanner.stop();
+      state.kameraAktif = false;
+      await mulaiStreamKamera(scanner, kameraBaru.id);
+      state.indeksKamera = indeksBaru;
+      state.kameraAktif = true;
+      tampilkanKameraAktif();
+      setLog("Kamera diganti", "Pemindai menggunakan " + (kameraBaru.label || "kamera " + (indeksBaru + 1)) + ".", "neutral");
+    } catch (error) {
+      if (!state.kameraAktif) {
+        try {
+          await mulaiStreamKamera(scanner, state.daftarKamera[indeksLama].id);
+          state.indeksKamera = indeksLama;
+          state.kameraAktif = true;
+          tampilkanKameraAktif();
+          setLog("Kamera tidak dapat diganti", "Kamera sebelumnya dipulihkan. Periksa izin atau koneksi perangkat.", "warning");
+        } catch (pulihError) {
+          state.kameraAktif = false;
+          state.scanner = null;
+          try { await scanner.stop(); } catch (stopError) { console.warn("Kamera gagal dihentikan setelah pergantian gagal.", stopError); }
+          try { await scanner.clear(); } catch (clearError) { console.warn("Tampilan pemindai tidak dapat dibersihkan.", clearError); }
+          state.daftarKamera = [];
+          state.indeksKamera = -1;
+          el("badge-camera").textContent = "Kamera mati";
+          el("badge-camera").className = "badge badge-neutral";
+          setLog("Pergantian kamera gagal", "Kamera sebelumnya juga tidak dapat dipulihkan. Aktifkan kembali kamera untuk mencoba lagi.", "error");
+          console.error(pulihError);
+        }
+      } else {
+        setLog("Kamera tidak dapat diganti", "Kamera yang sedang digunakan tetap aktif.", "warning");
+      }
+      console.error(error);
+    } finally {
+      state.mulaiKamera = false;
+      perbaruiKontrolKamera();
     }
   }
 
@@ -611,6 +719,8 @@
     state.mulaiKamera = false;
     state.prosesScan = false;
     state.nimMenungguPilihan = "";
+    state.daftarKamera = [];
+    state.indeksKamera = -1;
     el("choice-panel").hidden = true;
     if (scanner) {
       try { await scanner.stop(); } catch (error) { console.warn("Kamera sudah berhenti atau gagal dihentikan.", error); }
@@ -618,8 +728,7 @@
     }
     el("badge-camera").textContent = "Kamera mati";
     el("badge-camera").className = "badge badge-neutral";
-    el("btn-camera").textContent = "Aktifkan kamera";
-    el("btn-camera").disabled = !state.sesiAktif.length;
+    perbaruiKontrolKamera();
   }
 
   async function keluar(expired) {
@@ -647,6 +756,7 @@
       await mulaiKamera();
     }
   });
+  el("btn-switch-camera").addEventListener("click", gantiKamera);
   el("btn-refresh-status").addEventListener("click", function () { perbaruiStatusSesi(); });
   el("sel-rekap-sesi").addEventListener("change", function () { perbaruiStatusSesi(el("sel-rekap-sesi").value); });
   el("btn-cancel-choice").addEventListener("click", function () {
